@@ -41,8 +41,16 @@ describe Post do
     end
     
     it "should error when given an invalid year" do
-      lambda { find(1901) }.should raise_error(ByStar::ParseError, "Invalid arguments detected, year may possibly be outside of valid range (1902-2039)")
-      lambda { find(2039) }.should raise_error(ByStar::ParseError, "Invalid arguments detected, year may possibly be outside of valid range (1902-2039)")
+      # This is broken on 1.8.6 (and previous versions), any patchlevel after & before 111
+      major, minor, trivial = RUBY_VERSION.split(".").map(&:to_i)
+      if major == 1 && ((minor == 8 && trivial <= 6) || (minor <= 8)) && RUBY_PATCHLEVEL.to_i > 111
+        lambda { find(1901) }.should raise_error(ByStar::ParseError, "Invalid arguments detected, year may possibly be outside of valid range (1902-2039)")
+        lambda { find(2039) }.should raise_error(ByStar::ParseError, "Invalid arguments detected, year may possibly be outside of valid range (1902-2039)")
+      else
+        find(1456).should be_empty
+        find(1901).should be_empty
+        find(2039).should be_empty
+      end
     end
     
     it "should be able to use an alternative field" do
@@ -147,6 +155,12 @@ describe Post do
     it "should be able to find posts by a given date" do
       stub_time
       size(1.week.ago.to_date).should eql(0)
+    end
+    
+    it "should find, not size the posts for the current week" do
+      stub_time
+      find.map(&:text).include?("The 'Current' Week")
+      find.map(&:text).include?("Weekend of May")
     end
     
     it "should raise an error when given an invalid argument" do
